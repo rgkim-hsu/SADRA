@@ -2,7 +2,7 @@
 
 > 스마트팜 시스템을 위한 오픈소스 멀티모달 LLM 기반 ADR 생성 결과의 다중 레퍼런스 편향 실증 분석
 
-Yonggyu Kim, Kwang Hyun Rho — Hansung University | Journal of KIIT, 2026
+Yonggyu Kim 
 
 ## Repository Structure
 
