@@ -2,7 +2,7 @@
 
 > 스마트팜 시스템을 위한 오픈소스 멀티모달 LLM 기반 ADR 생성 결과의 다중 레퍼런스 편향 실증 분석
 
-Yonggyu Kim, Kwang Hyun Rho — Hansung University | Journal of KIIT, 2026
+Yonggyu Kim, Kwang Hyun Rho — Hansung University  
 
 ## Repository Structure
 
@@ -27,12 +27,3 @@ python statistical_analysis.py ./data/
 - Post-hoc output signals explain 86% of variance (R²=0.862)
 
 ## Citation
-
-```bibtex
-@article{kim2026smartfarm-adr,
-  title={An Empirical Analysis of Multi-Reference Bias in Open-Source Multimodal LLM-Based ADR Generation for Smart Farm Systems},
-  author={Kim, Yonggyu and Rho, Kwang Hyun},
-  journal={Journal of KIIT},
-  year={2026}
-}
-```
