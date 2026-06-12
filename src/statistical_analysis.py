@@ -157,15 +157,7 @@ DOC_TYPE_LABEL = {
     "연구 보고서": "연구 보고서",
 }
 
-# 문서 유형별 메타데이터 (논문 표 8에 명시된 값)
-# — 평균 길이(단어)·평균 다이어그램 수는 원본 문서 메타데이터이며
-#   유사도 Excel에 포함되지 않으므로, document_metadata.csv 가 없을 때
-#   논문에 게재된 값을 사용한다.
-PAPER_DOC_METADATA = {
-    "특허":      {"avg_words": 8432,  "avg_diagrams": 2.3},
-    "연구 보고서": {"avg_words": 12716, "avg_diagrams": 4.1},
-    "전체":      {"avg_words": 10679, "avg_diagrams": 3.2},
-}
+# (문서 유형별 메타데이터 사용 제거)
 
 
 # ─── 유틸리티 함수 ────────────────────────────────────────────────────────────
@@ -684,12 +676,8 @@ def dataset_characteristics(df: pd.DataFrame, data_dir: str = "."):
     """
     데이터셋 특성 분석 (§5.3, 표 8).
 
-    문서 유형 판별 우선순위:
-      (1) doc_type 컬럼이 patent/report(특허/보고서)를 명확히 담은 경우
-      (2) 그 외에는 document_id 접두사로 판별 (특허는 '10'으로 시작)
-
-    평균 길이·다이어그램 수 우선순위:
-      (1) df 내 컬럼  (2) data_dir/document_metadata.csv  (3) 표 8 내장값
+    문서 유형 판별:
+      - DocType 사용 (특허는 '10'으로 시작)
     """
     print("\n" + "=" * 80)
     print("§5.3  데이터셋 특성 분석 (표 8)")
@@ -702,63 +690,6 @@ def dataset_characteristics(df: pd.DataFrame, data_dir: str = "."):
         df["DocType"] = df["document_id"].apply(classify_doc_type)
     df["_label"] = df["DocType"]
 
-    # ── 외부 메타데이터 파일 로드 시도 ──
-    meta_lookup = {}
-    meta_path = os.path.join(data_dir, "document_metadata.csv")
-    if os.path.exists(meta_path):
-        try:
-            mdf = pd.read_csv(meta_path)
-            wcol = next((c for c in ["word_count", "words", "length"]
-                         if c in mdf.columns), None)
-            dcol = next((c for c in ["diagram_count", "diagrams", "num_diagrams"]
-                         if c in mdf.columns), None)
-            if "document_id" in mdf.columns and wcol:
-                for _, r in mdf.iterrows():
-                    meta_lookup[str(r["document_id"])] = (
-                        r.get(wcol), r.get(dcol) if dcol else None)
-                print(f"  메타데이터 로드: {meta_path}")
-        except Exception as e:
-            print(f"  메타데이터 로드 실패({e}), 내장값 사용")
-
-    len_col = next((c for c in ["doc_word_count", "word_count", "document_length"]
-                    if c in df.columns), None)
-    diag_col = next((c for c in ["diagram_count", "num_diagrams", "image_count"]
-                     if c in df.columns), None)
-
-    def get_meta(sub, label):
-        """문서 유형별 평균 길이·다이어그램 수 (우선순위 적용, None-safe)."""
-        # (1) df 컬럼
-        if len_col:
-            w = sub.groupby("document_id")[len_col].first().mean()
-            d = (sub.groupby("document_id")[diag_col].first().mean()
-                 if diag_col else None)
-            if w is not None and not np.isnan(w):
-                return w, d
-        # (2) 외부 메타데이터
-        if meta_lookup:
-            doc_ids = sub["document_id"].unique()
-            ws = [meta_lookup[str(i)][0] for i in doc_ids
-                  if str(i) in meta_lookup and meta_lookup[str(i)][0] is not None]
-            ds = [meta_lookup[str(i)][1] for i in doc_ids
-                  if str(i) in meta_lookup and meta_lookup[str(i)][1] is not None]
-            if ws:
-                return np.mean(ws), (np.mean(ds) if ds else None)
-        # (3) 표 8 내장값
-        m = PAPER_DOC_METADATA.get(label)
-        if m:
-            return m["avg_words"], m["avg_diagrams"]
-        return None, None
-
-    source_used = ("df 컬럼" if len_col else
-                   "document_metadata.csv" if meta_lookup else
-                   "표 8 내장값")
-
-    def fmt_w(w):
-        return f"{w:,.0f}" if w is not None else "N/A"
-
-    def fmt_d(d):
-        return f"{d:.1f}" if d is not None else "N/A"
-
     rows = []
     label_order = ["특허", "연구 보고서"]
     labels = [l for l in label_order if l in df["_label"].unique()]
@@ -768,19 +699,14 @@ def dataset_characteristics(df: pd.DataFrame, data_dir: str = "."):
     doc_level = df.groupby(["document_id", "_label"])["OverallScore"].mean().reset_index()
 
     for label in labels:
-        sub_rows = df[df["_label"] == label]          # 행 단위 (메타데이터용)
         sub_docs = doc_level[doc_level["_label"] == label]  # 문서 단위
         n_docs = sub_docs["document_id"].nunique()
         mean_os = sub_docs["OverallScore"].mean()      # 문서 평균들의 평균
         std_os = sub_docs["OverallScore"].std()        # 문서 평균들의 표준편차
-        w, d = get_meta(sub_rows, label)
-        print(f"  {label}: n={n_docs}, 평균 길이={fmt_w(w)}단어, "
-              f"다이어그램={fmt_d(d)}장, Overall={mean_os:.3f}, σ={std_os:.3f}")
+        print(f"  {label}: n={n_docs}, Overall={mean_os:.3f}, σ={std_os:.3f}")
         rows.append({
             "문서 유형": label,
             "건수(n)": n_docs,
-            "평균 길이(단어)": fmt_w(w),
-            "평균 다이어그램 수": fmt_d(d),
             "평균 Overall Score": round(mean_os, 3),
             "표준편차": round(std_os, 3),
         })
@@ -789,20 +715,13 @@ def dataset_characteristics(df: pd.DataFrame, data_dir: str = "."):
     n_all = doc_level["document_id"].nunique()
     mean_all = doc_level["OverallScore"].mean()
     std_all = doc_level["OverallScore"].std()
-    w_all, d_all = get_meta(df, "전체")
-    print(f"  전체: n={n_all}, 평균 길이={fmt_w(w_all)}단어, "
-          f"다이어그램={fmt_d(d_all)}장, Overall={mean_all:.3f}, σ={std_all:.3f}")
+    print(f"  전체: n={n_all}, Overall={mean_all:.3f}, σ={std_all:.3f}")
     rows.append({
         "문서 유형": "전체",
         "건수(n)": n_all,
-        "평균 길이(단어)": fmt_w(w_all),
-        "평균 다이어그램 수": fmt_d(d_all),
         "평균 Overall Score": round(mean_all, 3),
         "표준편차": round(std_all, 3),
     })
-
-    print(f"  (길이·다이어그램 수 출처: {source_used}; "
-          f"Overall Score·σ는 문서 단위 집계)")
     return pd.DataFrame(rows)
 
 
