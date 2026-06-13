@@ -1,6 +1,7 @@
 # Multi-Reference Bias Analysis in LLM-based ADR Generation for Smart Farm Systems
 
 > 스마트팜 시스템을 위한 오픈소스 멀티모달 LLM 기반 ADR 생성 결과의 다중 레퍼런스 편향 실증 분석
+> Yong-gyu Kim 
 
 ## Repository Structure
 
