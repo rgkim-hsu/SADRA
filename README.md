@@ -1,4 +1,4 @@
-# Multi-Reference Bias Analysis in LLM-based ADR Generation for Smartfarm Systems
+# An Empirical Analysis of Multi-Reference Bias in Open-Source Multimodal LLM-based ADR Generation for Smartfarm Systems
 
 > 스마트팜 시스템을 위한 오픈소스 멀티모달 LLM 기반 ADR 생성 결과의다중 레퍼런스 평가 변동성 및 계열 유사성 편향 실증 분석
 > Yong-gyu Kim 
