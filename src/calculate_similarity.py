@@ -893,6 +893,33 @@ _HEADING_RE = re.compile(r'^(#{1,6})\s+(.+)$', re.MULTILINE)
 _CODE_FENCE_RE = re.compile(r'```[\s\S]*?```')
 _TABLE_SEPARATOR_RE = re.compile(r'^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$')
 _LIST_ITEM_RE = re.compile(r'^(\s*)(?:[-*+]|\d+[\.)])\s+(.+)$')
+_SETEXT_H1_RE = re.compile(r'^=+$')
+_SETEXT_H2_RE = re.compile(r'^-{3,}$')
+
+
+def _setext_heading_level(lines: list[str], i: int) -> int | None:
+    """lines[i]가 Setext 제목이면 레벨(1 또는 2), 아니면 None을 반환합니다.
+
+    Setext는 제목 텍스트 아래 줄에 '='(h1) 또는 '-'(h2)를 반복하는 표기 방식입니다.
+    LLM마다 제목 표기 방언이 달라(ATX vs Setext) 한쪽만 인식하면 문서 트리의
+    계층 구조가 소실되므로 두 방식을 모두 인식해야 합니다.
+
+    ATX 제목, 표 행, 리스트 항목, 코드블록 마커는 오탐을 막기 위해 제외합니다.
+    특히 표 구분선(|---|---|)이 Setext h2로 오인되지 않도록 '|' 포함 행을 배제합니다.
+    """
+    if i + 1 >= len(lines):
+        return None
+    cur = lines[i].strip()
+    if not cur or cur.startswith('#') or cur == '<code_block/>' or '|' in cur:
+        return None
+    if _LIST_ITEM_RE.match(lines[i]):
+        return None
+    nxt = lines[i + 1].strip()
+    if _SETEXT_H1_RE.fullmatch(nxt):
+        return 1
+    if _SETEXT_H2_RE.fullmatch(nxt):
+        return 2
+    return None
 
 
 class _TreeNode:
@@ -1009,14 +1036,17 @@ def _markdown_to_awareness_tokens(markdown_text: str) -> list[str]:
             tokens.append('</ol>')
             in_ol_stack.pop()
 
-    for raw in text.splitlines():
-        line = raw.rstrip('\n')
+    lines = text.splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i].rstrip('\n')
         stripped = line.strip()
         if not stripped:
             if in_table:
                 tokens.append('</table>')
                 in_table = False
             close_lists()
+            i += 1
             continue
 
         if stripped == '<code_block/>':
@@ -1025,16 +1055,22 @@ def _markdown_to_awareness_tokens(markdown_text: str) -> list[str]:
                 in_table = False
             close_lists()
             tokens.extend(['<pre>', '</pre>'])
+            i += 1
             continue
 
         heading = re.match(r'^(#{1,6})\s+(.+)$', stripped)
-        if heading:
+        level, advance = (len(heading.group(1)), 1) if heading else (None, 1)
+        if level is None:
+            sx = _setext_heading_level(lines, i)
+            if sx is not None:
+                level, advance = sx, 2      # 제목 행 + 밑줄 행
+        if level is not None:
             if in_table:
                 tokens.append('</table>')
                 in_table = False
             close_lists()
-            level = len(heading.group(1))
             tokens.extend([f'<h{level}>', f'</h{level}>'])
+            i += advance
             continue
 
         if '|' in stripped:
@@ -1050,6 +1086,7 @@ def _markdown_to_awareness_tokens(markdown_text: str) -> list[str]:
                     tokens.append('<tr>')
                     tokens.extend(['<td></td>'] * len(cells))
                     tokens.append('</tr>')
+                i += 1
                 continue
         if in_table:
             tokens.append('</table>')
@@ -1075,11 +1112,13 @@ def _markdown_to_awareness_tokens(markdown_text: str) -> list[str]:
                     tokens.append('</ul>')
                     in_ul_stack.pop()
                 tokens.extend(['<li>', '</li>'])
+            i += 1
             continue
 
         close_lists()
         # 문단은 내용 길이나 어휘가 아니라 구조적 존재만 반영합니다.
         tokens.extend(['<p>', '</p>'])
+        i += 1
 
     if in_table:
         tokens.append('</table>')
@@ -1141,14 +1180,18 @@ def _markdown_document_to_tree(markdown_text: str) -> _TreeNode:
             continue
 
         heading = re.match(r'^(#{1,6})\s+(.+)$', stripped)
-        if heading:
-            level = len(heading.group(1))
+        level, advance = (len(heading.group(1)), 1) if heading else (None, 1)
+        if level is None:
+            sx = _setext_heading_level(lines, i)
+            if sx is not None:
+                level, advance = sx, 2      # 제목 행 + 밑줄 행
+        if level is not None:
             while stack and stack[-1][0] >= level:
                 stack.pop()
             node = _TreeNode(f'h{level}')
             stack[-1][1].children.append(node)
             stack.append((level, node))
-            i += 1
+            i += advance
             continue
 
         if '|' in stripped:
