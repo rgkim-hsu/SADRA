@@ -21,36 +21,25 @@ import re
 import glob
 import csv
 
-
 def count_words(filepath: str) -> int:
-    """파일의 단어 수를 반환."""
-    try:
-        with open(filepath, "r", encoding="utf-8") as f:
-            text = f.read()
-        # 마크다운 문법 요소 제거 후 단어 수 카운트
-        text = re.sub(r"[#*|`\-\[\]()>]", " ", text)
-        words = text.split()
-        return len(words)
+    with open(filepath, "r", encoding="utf-8") as f:
+        return len(re.findall(r"\w+", f.read()))
     except Exception as e:
         print(f"  ⚠ {filepath}: {e}")
         return 0
 
+LOCAL_MODELS = ["gemma", "ministral", "qwen"]
+REFERENCE_MODELS = ["chatgpt", "claude", "gemini", "mistral", "qwen3_6"]
 
 def extract_doc_model(filename: str):
-    """파일명에서 document_id와 model을 추출."""
-    # 패턴: {document_id}_{model}_adr.md 또는 유사 형식
     name = os.path.splitext(filename)[0]
-    
-    # 모델 이름 후보
-    models = ["gemma", "ministral", "qwen"]
-    
-    for model in models:
-        if f"_{model}" in name.lower():
-            doc_id = name.lower().split(f"_{model}")[0]
-            return doc_id.strip("_"), model
-    
-    return name, "unknown"
-
+    parts = name.split("_")          # PAT-01 / gemma / ADR
+    if len(parts) < 2:
+        return None, None
+    doc_id, model = parts[0], parts[1]
+    if model in REFERENCE_MODELS:    # 레퍼런스 ADR은 제외
+        return None, None
+    return (doc_id, model) if model in LOCAL_MODELS else (None, None)
 
 def main():
     if len(sys.argv) < 2:
