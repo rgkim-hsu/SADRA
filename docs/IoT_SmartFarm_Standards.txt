@@ -1,4 +1,5 @@
-#SmartFarm Standards in RAG
+# Smart Farm Standards 
+
 스마트팜_기자재_표준화_가이드북_최종본.pdf
 스마트팜_기자재_검인증_가이드북_최종본.pdf
 SPS-X KOAT-0005-7467 스마트 온실 제어형 노드와 온실 통합 제어기 사이의 RS485 모드버스 인터페이스.pdf
@@ -73,3 +74,21 @@ TTAR-10_[1].0181_스마트 노지 과수 수액 흐름 센서 설치 지침(기�
 TTAK_[1].KO-10.1347／R1_스마트 노지 작물 빅데이터 수집 항목 정의.pdf
 TTAR.10.0197_스마트 노지 토양 수분 센서 설치 지침 - 과수원(기술보고서).pdf
 TTAK.KO-10.1528_스마트 노지 자율 관수 서비스 요구사항 및 기능 구조.pdf
+
+# IoT Standards 
+IEEE2413-2019_IEEE Standard for an Architectural Framework for the Internet of Things (IOT).pdf
+IEEE42010-2022_Software, systems and enterprise - Architecture description.pdf
+ISO_IEC_30141_2024(en)_Internet of things (IoT) ? Reference architecture.pdf
+ISO_IEC_21823-5 ED1_2025.pdf
+ISO_IEC_21823-2_2020.pdf
+ISO_IEC_21823-3_2021.pdf
+ISO_IEC_21823-4_2022.pdf
+ISO_IEC_30161-1_2020.pdf
+ISO_IEC_30161-2_2023.pdf
+ISO_IEC_30165_2021.pdf
+ISO_IEC_30179_2023.pdf
+ISO_IEC_TR_30194_2024.pdf
+ISO_IEC_TR_30166_2020.pdf
+ISO_IEC_TR_30166_2020_.pdf
+ISO_IEC_21823-1_2019.pdf
+
