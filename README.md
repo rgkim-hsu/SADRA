@@ -1,6 +1,6 @@
-# An Empirical Analysis of Multi-Reference Bias in Open-Source Multimodal LLM-based ADR Generation for Smartfarm Systems
+# An Empirical Analysis of Multi-Reference Bias in Open-Source LLM-based ADR Generation for Smartfarm Systems
 
-> 스마트팜 시스템을 위한 오픈소스 멀티모달 LLM 기반 ADR 생성 결과의다중 레퍼런스 평가 변동성 및 계열 유사성 편향 실증 분석
+> 스마트팜 시스템을 위한 오픈소스 LLM 기반 ADR 생성 결과의다중 레퍼런스 평가 변동성 및 계열 유사성 편향 실증 분석
 > Yong-gyu Kim 
 
 ## Repository Structure
@@ -27,5 +27,5 @@
 - Post-hoc signals explain 67% (R²=0.673, LOOCV R²=0.604); a reference-free 3-signal model reaches R²=0.760, LOOCV R²=0.688
 
 ## Citation
-Y. Kim and K. H. Rho, "스마트팜 시스템을 위한 오픈소스 멀티모달 LLM 기반 ADR 생성결과의 다중 레퍼런스 평가 변동성 및 계열 유사성 편향 실증 분석,"
+Y. Kim and K. H. Rho, "스마트팜 시스템을 위한 오픈소스 LLM 기반 ADR 생성결과의 다중 레퍼런스 평가 변동성 및 계열 유사성 편향 실증 분석,"
 Journal of KIIT, (심사 중), 2026.
