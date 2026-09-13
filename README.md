@@ -5,6 +5,8 @@
 This repository contains the data, analysis code, and a fully formula-driven reproduction
 workbook for the paper. All statistics reported in the paper can be recomputed cell by cell.
 
+<img width="567" height="166" alt="image" src="https://github.com/user-attachments/assets/890cb190-05a7-4e57-84d0-2fa442b3286f" />
+
 ## Repository Structure
 
 | Path | Description |
