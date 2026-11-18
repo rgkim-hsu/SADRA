@@ -9,8 +9,8 @@ document_metadata.csv를 생성하는 유틸리티 스크립트.
   python generate_output_words.py <ADR_출력_디렉토리> [--output document_metadata.csv]
 
 ADR 파일 이름 형식 예시:
-  1020190092258B1_9_1_gemma_adr.md
-  TRKO202100009640_qwen_adr.md
+  PAT-01_gemma_ADR.md
+  RPT-01_qwen_ADR.md
 
 출력:
   document_id, model, output_words 컬럼을 가진 CSV 파일
@@ -22,8 +22,9 @@ import glob
 import csv
 
 def count_words(filepath: str) -> int:
-    with open(filepath, "r", encoding="utf-8") as f:
-        return len(re.findall(r"\w+", f.read()))
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            return len(re.findall(r"\w+", f.read()))
     except Exception as e:
         print(f"  ⚠ {filepath}: {e}")
         return 0

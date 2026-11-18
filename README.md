@@ -11,7 +11,7 @@ workbook for the paper. All statistics reported in the paper can be recomputed c
 
 | Path | Description |
 | --- | --- |
-| `ADRs/` | Source diagrams and generated ADRs — 65 documents × 7 models (5 reference, 3 open-source local) |
+| `ADRs/` | Source diagrams and generated ADRs — 65 documents × 8 models (5 reference, 3 open-source local) |
 | `data/similarity_*_as_reference.xlsx` | Per-reference similarity scores for all 975 evaluation pairs |
 | `data/statistical_analysis_results.xlsx` | Aggregated analysis outputs |
 | `data/figures/` | Generated figures |
@@ -19,8 +19,10 @@ workbook for the paper. All statistics reported in the paper can be recomputed c
 | `docs/IoT_SmartFarm_Standards.txt` | Domain standards corpus used for RAG indexing |
 | `prompts/adr_generation_template.md` | Single prompt template used for all models |
 | `src/calculate_similarity.py` | 12 similarity metrics (lexical / semantic / structural) |
-| `src/statistical_analysis.py` | Full statistical reproduction (§4.1–§4.5) |
+| `src/statistical_analysis.py` | Statistical reproduction (§4.1–§4.5), including the paired tests of Table 5 |
+| `src/generate_output_words.py` | Extracts the per-document output word count used in §4.3 |
 | `src/convnext_diagram_classifier.py` | ConvNeXt-Base diagram classifier |
+| `src/convnext_confidence_batch_results.py` | Batch confidence output of the diagram classifier |
 | `src/batch_pdf_to_doc.py` | Document preprocessing |
 | `requirements.txt` | Python dependencies |
 
@@ -33,11 +35,17 @@ python src/statistical_analysis.py ./data/
 
 Environment: Python 3.11, scipy 1.11, statsmodels 0.14, pingouin 0.5.
 
+The analysis code is distributed as plain Python scripts. The script prints the paper's
+tables in order and writes `data/statistical_analysis_results.xlsx`. The visual-complexity
+correlations of §4.3 are not part of the script.
+
 ## Reproduction Workbook
 
 `docs/KIIT_Stats_Workbook_통계재현.xlsx` carries the raw 975 evaluation pairs and recomputes
 every printed statistic through spreadsheet formulas — sum-of-squares decomposition, variance
 components, rank-based tests, double-centered residuals, regression, and LOOCV.
+The file stores formulas without cached results; open it in Excel or LibreOffice Calc
+to have the values calculated.
 
 | Sheet | Content |
 | --- | --- |
@@ -69,13 +77,18 @@ the 975 pairs are repeated measurements, not independent samples.
 
 ## Data Note
 
-Document identifiers are de-identified. The mapping between identifiers and the original
-patent/report sources is not distributed.
+Document identifiers are de-identified (`PAT-nn` = patent, `RPT-nn` = research report). The
+mapping between identifiers and the original patent/report sources is not distributed.
+The `output_words` column was counted on the files under their original names, so
+recounting on the de-identified files gives a value larger by exactly one word per document;
+rank correlations and regression fits are unaffected.
 
 ## Citation
 
 ```
-(To be completed on acceptance)
+Y. Kim and K. H. Ro, "An Empirical Analysis of Multi-Reference Bias in Open-Source
+LLM-Generated ADRs for Smart Farm Systems," Journal of KIIT, 2026 (accepted Sep. 15, 2026;
+volume, issue and pages to be added on publication).
 ```
 
 ## License

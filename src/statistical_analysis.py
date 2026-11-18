@@ -46,7 +46,7 @@ import pandas as pd
 from scipy import stats
 from scipy.stats import (
     shapiro, levene, kruskal, mannwhitneyu, spearmanr, pearsonr,
-    chi2_contingency, friedmanchisquare, wilcoxon
+    chi2_contingency, friedmanchisquare, wilcoxon, rankdata
 )
 import statsmodels.api as sm
 from statsmodels.formula.api import ols
@@ -110,8 +110,19 @@ FAMILY_MAP = {
 
 
 def classify_doc_type(doc_id: str) -> str:
-    """특허(10...)와 연구 보고서를 document_id 접두사로 분류."""
-    return "특허" if str(doc_id).strip().startswith("10") else "연구 보고서"
+    """비식별 document_id 접두사로 문서 유형을 분류한다.
+
+    PAT-nn = 특허, RPT-nn = 연구 보고서.
+    공개 자료는 원 식별자 대신 비식별 ID를 사용하며, 유형 정보를 ID 접두사에
+    담아 별도 매핑표 없이 분석할 수 있게 하였다.
+    """
+    sid = str(doc_id).strip().upper()
+    if sid.startswith("PAT"):
+        return "특허"
+    if sid.startswith("RPT"):
+        return "연구 보고서"
+    # 구 형식 호환: 특허 등록번호는 '10'으로 시작
+    return "특허" if sid.startswith("10") else "연구 보고서"
 
 
 # 레퍼런스 모델 이름 정규화 (소문자 키로 정규화)
@@ -402,8 +413,40 @@ def rq1_analysis(df: pd.DataFrame):
     print(ref_stats.round(4))
     print("  → 평균=관대함(leniency), 점수 폭·분산 비중=변별력(discriminability)")
 
-    # ── 모델 쌍별 비교 (논문 표 4) ──
-    print("\n--- 모델 쌍별 Overall Score 차이 검정 (표 5) ---")
+    # ── 모델 쌍별 비교: 대응표본 (논문 표 5) ──
+    # 975개 평가쌍은 65개 문서의 반복 측정이므로 문서를 블록으로 둔다.
+    # 각 모델 점수는 레퍼런스 5종 평균으로 집계하여 레퍼런스 주효과를 상쇄한다.
+    print("\n--- 모델 쌍별 Overall Score 차이 검정: 대응표본 (표 5) ---")
+    wide = (df.groupby(["document_id", "Model"])["OverallScore"]
+              .mean().unstack("Model"))
+    chi2_f, p_f = friedmanchisquare(*[wide[c].values for c in wide.columns])
+    kendall_w = chi2_f / (len(wide) * (wide.shape[1] - 1))
+    print(f"Friedman χ²({wide.shape[1] - 1})={chi2_f:.3f}, p={p_f:.2e}, "
+          f"Kendall W={kendall_w:.3f} (블록 n={len(wide)})")
+    paired_rows, paired_p = [], []
+    for m1, m2 in [("Gemma", "Ministral"), ("Gemma", "Qwen"), ("Qwen", "Ministral")]:
+        if m1 not in wide.columns or m2 not in wide.columns:
+            continue
+        dd = (wide[m1] - wide[m2]).values
+        w_res = wilcoxon(dd)
+        ranks = rankdata(np.abs(dd))
+        w_pos, w_neg = ranks[dd > 0].sum(), ranks[dd < 0].sum()
+        paired_rows.append({
+            "비교": f"{m1} vs {m2}",
+            "평균 차": f"{dd.mean():+.4f}",
+            "W": f"{w_res.statistic:.0f}",
+            "대응 r": f"{(w_pos - w_neg) / (w_pos + w_neg):+.3f}",
+            "Cohen dz": f"{dd.mean() / dd.std(ddof=1):+.2f}",
+            "우세 문서": f"{int((dd > 0).sum())}/{len(dd)}",
+        })
+        paired_p.append(w_res.pvalue)
+    for row, hp in zip(paired_rows, holm_bonferroni(paired_p)):
+        row["Holm p"] = "< .001" if hp < 0.001 else f"{hp:.3f}"
+    paired_df = pd.DataFrame(paired_rows)
+    print(paired_df.to_string(index=False))
+
+    # ── 참고: 독립표본 검정 (반복 측정 구조를 무시하므로 논문에는 보고하지 않음) ──
+    print("\n--- 참고: 독립표본 Mann-Whitney (논문 미보고, 비교용) ---")
     models = sorted(df["Model"].unique())
     pairs = []
     p_values_for_correction = []
@@ -444,7 +487,8 @@ def rq1_analysis(df: pd.DataFrame):
     overall_cv = (overall_mean.std() / overall_mean.mean()) * 100
     print(f"\n오픈소스 모델 3개 평균: {overall_mean.mean():.4f} (CV={overall_cv:.2f}%)")
 
-    return anova_table, pairs_df, ref_stats
+    rq1_analysis.independent_df = pairs_df   # 참고용 독립표본 결과
+    return anova_table, paired_df, ref_stats
 
 
 # ─── §4.3 RQ2: 시각 복잡도 및 문서 형식 효과 ─────────────────────────────────
@@ -551,7 +595,7 @@ def rq2_analysis(df: pd.DataFrame):
 # ─── §4.4 RQ3: Family Bias 분석 ──────────────────────────────────────────────
 
 def rq3_analysis(df: pd.DataFrame):
-    """Family bias 검정 (§4.4, 표 7)."""
+    """Family bias 검정 (§4.4, 표 6)."""
     print("\n" + "=" * 80)
     print("§4.4  RQ3: Family Bias 분석")
     print("=" * 80)
@@ -595,10 +639,10 @@ def rq3_analysis(df: pd.DataFrame):
         "Cohen's d": f"{d:+.3f}",
     }
 
-   # ── 계열별 비대칭성 (표 7) — 모델 기준 ──
+   # ── 계열별 비대칭성 (표 6) — 모델 기준 ──
     # 해석: 동일 모델이 '자기 계열 레퍼런스'로 평가받을 때 vs '타 레퍼런스'로 평가받을 때
     # 예: gemma←Gemini vs gemma←{Claude, ChatGPT, Mistral, Qwen3_6}
-    print("\n--- 모델 계열별 Family Bias 비대칭성 (표 7, 모델 기준) ---")
+    print("\n--- 모델 계열별 Family Bias 비대칭성 (표 6, 모델 기준) ---")
     bias_rows = [overall_row]
     for (ref, mod), family_name in FAMILY_MAP.items():
         model_name = MODEL_NAME_MAP.get(mod, mod)
@@ -618,7 +662,7 @@ def rq3_analysis(df: pd.DataFrame):
                 "편향(Δ)": f"{delta:+.4f}",
             })
 
-    # ── 이중 중심화 잔차 Δ* (논문 3.4, 표 7) ──
+    # ── 이중 중심화 잔차 Δ* (논문 3.4, 표 6) ──
     # Δ* = (셀) − (레퍼런스 행평균) − (모델 열평균) + (전체평균)
     # 레퍼런스별 관대함과 모델별 실력을 모두 제거하여 조합 고유 효과만 남긴다.
     print("\n--- 이중 중심화 잔차 Δ* (관대함 통제 후) ---")
@@ -692,7 +736,7 @@ def rq3_analysis(df: pd.DataFrame):
 # ─── §4.5 어휘-의미 격차 분석 ────────────────────────────────────────────────
 
 def lexical_semantic_gap(df: pd.DataFrame):
-    """어휘-의미 격차 분석 (§4.5, 표 7)."""
+    """어휘-의미 격차 분석 (§4.5)."""
     print("\n" + "=" * 80)
     print("§4.5  어휘-의미 격차 분석")
     print("=" * 80)
@@ -853,12 +897,12 @@ def lmm_analysis(df: pd.DataFrame):
         return pd.DataFrame([{"항목": "LMM 적합 실패", "비고": str(e)}])
 
 
-# ─── 레퍼런스×모델 상세 성능표 (논문 표 5) ────────────────────────────────────
+# ─── 레퍼런스×모델 상세 성능표 (논문 표 7) ────────────────────────────────────
 
 def detailed_performance_table(df: pd.DataFrame):
-    """레퍼런스 모델별 오픈소스 LLM 12개 지표 성능 비교 (논문 표 6)."""
+    """레퍼런스 모델별 오픈소스 LLM 12개 지표 성능 비교 (논문 표 7)."""
     print("\n" + "=" * 80)
-    print("표 6  레퍼런스 모델별 오픈소스 LLM 12개 지표 성능 비교 (평균값)")
+    print("표 7  레퍼런스 모델별 오픈소스 LLM 12개 지표 성능 비교 (평균값)")
     print("=" * 80)
 
     metrics = LEXICAL_COLS + SEMANTIC_COLS + STRUCTURE_COLS + ["OverallScore"]
@@ -1307,11 +1351,11 @@ def main():
           f"{len(lex_found)+len(sem_found)+len(str_found)}개 메트릭)")
     print(f"  재계산 전체 평균: {df['OverallScore'].mean():.4f}, "
           f"표준편차: {df['OverallScore'].std():.4f}")
-    # 모델별 평균 (논문 표 4 대조용)
+    # 모델별 평균 (논문 4.2 대조용)
     model_means = df.groupby("Model")["OverallScore"].mean().sort_values(ascending=False)
     print(f"  모델별 평균: " +
           ", ".join(f"{m}={v:.4f}" for m, v in model_means.items()))
-    print(f"  (논문 표 4: Gemma=0.6465, Qwen=0.6434, Ministral=0.5646)")
+    print(f"  (논문 4.2: Gemma=0.6465, Qwen=0.6434, Ministral=0.5646)")
     if "overall_score" in df.columns:
         excel_mean = df["overall_score"].mean()
         print(f"  (Excel overall_score 컬럼 평균: {excel_mean:.4f})")
@@ -1346,6 +1390,8 @@ def main():
 
             # ── §4.2 모델 쌍별 비교 ──
             pairs_df.to_excel(writer, sheet_name="§4.2_모델쌍비교", index=False)
+            rq1_analysis.independent_df.to_excel(
+                writer, sheet_name="§4.2_참고_독립표본", index=False)
 
             # ── §4.2 레퍼런스별 CV ──
             ref_cv_out = ref_cv_df.copy()
@@ -1384,10 +1430,10 @@ def main():
                 index="Reference", columns="Model", aggfunc="mean"
             )
             perf.index.name = "Reference"
-            perf.to_excel(writer, sheet_name="표5_성능비교표")
+            perf.to_excel(writer, sheet_name="표7_성능비교표")
 
         print(f"\n결과 저장: {output_path}")
-        print(f"  시트 수: 11개 (논문 §4.1–§5.3 전체 통계량)")
+        print(f"  시트 수: 12개 (논문 §4.1–§5.3 전체 통계량)")
     except Exception as e:
         print(f"\n결과 저장 실패: {e}")
 

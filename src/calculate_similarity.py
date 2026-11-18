@@ -58,10 +58,10 @@ calculate_similarity_revised.py
   형식: {document_id}_{model_token}_{doc_type}.md
 
   예시:
-    1020200184565B1_1_2_gemini_ADR.md       → doc_id='1020200184565B1_1_2', model='gemini',  type='ADR'
-    1020200184565B1_1_2_claude_PRD.md       → doc_id='1020200184565B1_1_2', model='claude',  type='PRD'
-    1020200184565B1_1_2_qwen3_6_TestPlan.md → doc_id='1020200184565B1_1_2', model='qwen3_6', type='TestPlan'
-    1020200184565B1_1_2_chatgpt_TestPlan.md → doc_id='1020200184565B1_1_2', model='chatgpt', type='TestPlan'
+    PAT-01_gemini_ADR.md       → doc_id='PAT-01', model='gemini',  type='ADR'
+    PAT-01_claude_PRD.md       → doc_id='PAT-01', model='claude',  type='PRD'
+    PAT-01_qwen3_6_TestPlan.md → doc_id='PAT-01', model='qwen3_6', type='TestPlan'
+    PAT-01_chatgpt_TestPlan.md → doc_id='PAT-01', model='chatgpt', type='TestPlan'
 
   참고:
     - doc_type은 대소문자 무관 (TestPlan, testplan, TESTPLAN 모두 인식)
@@ -1444,10 +1444,10 @@ def extract_document_info(filename: str) -> tuple[str | None, str | None, str | 
         - 나머지가 document_id
 
     지원 예시:
-        1020200184565B1_1_2_gemini_ADR.md       → ('1020200184565B1_1_2', 'gemini', 'ADR')
-        1020200184565B1_1_2_claude_PRD.md       → ('1020200184565B1_1_2', 'claude', 'PRD')
-        1020200184565B1_1_2_qwen3_6plus_ADR.md  → ('1020200184565B1_1_2', 'qwen3_6plus', 'ADR')
-        1020200184565B1_1_2_chatgpt_TestPlan.md → ('1020200184565B1_1_2', 'chatgpt', 'TestPlan')
+        PAT-01_gemini_ADR.md       → ('PAT-01', 'gemini', 'ADR')
+        PAT-01_claude_PRD.md       → ('PAT-01', 'claude', 'PRD')
+        PAT-01_qwen3_6plus_ADR.md  → ('PAT-01', 'qwen3_6plus', 'ADR')
+        PAT-01_chatgpt_TestPlan.md → ('PAT-01', 'chatgpt', 'TestPlan')
     """
     base  = os.path.splitext(filename)[0]
     parts = base.split('_')
